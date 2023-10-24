@@ -1,0 +1,186 @@
+---
+title: "Ejercicio 4"
+author: "Equipo 4"
+output: html_document
+date: "2023-09-26"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(RVAideMemoire)
+library(rcompanion)
+```
+
+### Pregunta 1
+Estudios científicos han descubierto que la inteligencia musical está altamente relacionada con la inteligencia matemática. Pensando en mejorar la oferta de actividades culturales y recreativas, una Universidad ha examinado la preferencia de talleres de un grupo de 8 estudiantes de carreras científicas y 11 de carreras humanistas, encontrando que 6 de los primeros y 5 de los segundos participaron de talleres musicales. ¿Existe relación entre el tipo de carrera que cursan los estudiantes y su participación en talleres musicales?
+
+Se puede entender de la pregunta que se busca saber si el tipo de carrera que cursa un estudiante tiene relación con su participación en un taller musical, por lo que se definen las siguientes hipótesis.
+
+$$H_{0}: \text{Son independientes entre sí}$$
+$$H_{a}: \text{Tienen relación entre sí}$$
+
+También se puede entender por contexto (o se asume) que los estudiantes seleccionados al azar no tienen relación entre sí y son distintas personas, además se pueden notar las variables "Científico", "Humanista", "Participa del taller de música" y "No participa del taller de música", estas variables son categóricas y ambas dicotómicas. 
+
+Luego se procede a ordenar los datos de la siguiente forma:
+
+|            |  Participa  | No participa |    Total   |
+| ---------- |  ---------- |  ----------  | ---------- |
+| Científica |      6      |       2      |      8     |
+| Humanista  |      5      |       6      |     11     |
+|   Total    |     11      |       8      |     19     |
+
+Se puede notar también que en cada frecuencia se cumple que son mayores que 5, por lo tanto, habiendo comprobado todas las demás condiciones se puede decidir por utilizar la prueba exacta de Fisher.
+
+```{r}
+# Cada estudiante es independiente del otro
+carreras <- c(rep("Científica", 8), rep("Humanista", 11))
+participacion <- c(rep("Participa", 11), rep("No Participa", 8))
+datos <- data.frame(carreras, participacion)
+tabla <- xtabs(~., datos)
+
+alfa <- 0.05
+prueba <- fisher.test(tabla, alfa)
+prueba
+```
+
+Obteniendo un $p-value=0.003361$ de la prueba exacta de Fisher y usando una significancia de 0.05 se puede concluir con un 95% de confianza que no existe la suficiente evidencia para aceptar la hipótesis nula, y que, por lo tanto, hay una relación entre la carrera que cursa un estudiante y su participación en el taller musical.
+
+### Pregunta 2
+Siempre tenaz en su lucha para erradicar a los vampiros de la faz de la tierra, Van Helsing desea probar una vacuna que, según él, causará una grave enfermedad en estos seres una vez que beban la sangre de sus víctimas. Para ello, ha almacenado una gran cantidad de dosis de su propia sangre, separadas en dos grupos: uno de ellos contiene el químico de la vacuna, mientras el otro está completamente limpio. Adicionalmente, Van Helsing cuenta con 15 vampiros cautivos, a los que alimentó con sangre limpia por una semana. Luego de un periodo de limpieza (durante el cual los vampiros fueron alimentados con su dieta normal, por lo que eliminaron todo rastro de la sangre de Van Helsing), repitió el experimento con la sangre que contiene la vacuna. Para ambos casos, registró cuántos vampiros enfermaron, con los siguientes resultados:
+
+- 2 vampiros no presentaron enfermedad alguna con ninguna de las dietas de Van Helsing.
+
+- 3 vampiros enfermaron tras ambas dietas de Van Helsing.
+
+- 1 vampiro enfermó con la sangre limpia de Van Helsing, pero no con la sangre que contiene la vacuna.
+
+- 9 vampiros enfermaron con la sangre que contiene la vacuna, pero no con la sangre limpia de Van Helsing.
+
+¿Es posible decir que la vacuna de Van Helsing causa una enfermedad en los vampiros?
+
+Se busca identificar si hay o no diferencias en utilizar la sangre de Van Helsing con vacuna o sin vacuna para enfermar a los vampiros. Con base a lo anterior se formulan las siguientes hipótesis:
+
+$$H_{0}: \text{No hay cambios significativos entre el uso de una u otra dieta}$$
+$$H_{a}: \text{Si hay cambios significativos entre el uso de las dietas}$$
+
+Se considera como buen candidato para poder comprobar las hipótesis la prueba de mcNemar, para esto se ordenan los datos en la siguiente tabla y se comprueban condiciones.
+
+```{r}
+vampiro <- seq(1:15)
+limpia <- c(rep("No enfermo", 2),
+            rep("Enfermo", 4),
+            rep("No enfermo", 9))
+vacunada <- c(rep("No enfermo", 2),
+              rep("Enfermo", 3),
+              rep("No enfermo", 1),
+              rep("Enfermo", 9))
+
+datos <- data.frame(vampiro, limpia, vacunada)
+print(datos)
+```
+
+Como los datos sobre el estado de cada vampiro es dicotómico (enfermó o no enfermó) y las muestras son pareadas, ya que se utilizaron a los mismos sujetos de prueba, se cumplen con los requisitos para poder utilizar la prueba de mcNemar.
+
+```{r}
+tabla <- table(limpia, vacunada)
+
+prueba <- mcnemar.test(tabla)
+prueba
+```
+
+Como se obtiene un $p-value \text{ de } 0.02686 < 0.05$, se rechaza la hipótesis nula en favor de la hipótesis alternativa, por lo que se puede decir que si afecta a los vampiros la vacuna con sangre de Van Helsing con un 95% de confianza, ya que existen cambios significativos entre cada vacuna.
+
+### Pregunta 3
+El 15 de marzo de 2023 se realizó un estudio acerca de la aprobación al presidente Gabriel Boric en una comunidad universitaria, obteniéndose los resultados que se muestran en la tabla. ¿Existe relación entre el estamento de la comunidad y la aprobación del presidente?
+
+Se busca responder sobre la independencia entre la respuesta que da una persona perteneciente a la comunidad universitaria y el estamento al que esta pertenece. Como se hace uso de dos variables, una dicotómica ("aprueba", "desaprueba") y otra politómica ("Estudiante", "Profesor", "Funcionario"). En esta situación se quiere ver la independencia de cada una de las variables, por lo que se eligió Chi-cuadrado de independencia para responder a la pregunta, haciendo uso de las siguientes hipótesis:
+
+$$H_{0}: \text{La relación entre la respuesta y el estamento de la persona son independientes}$$
+$$H_{a}: \text{La relación entre la respuesta y el estamento de la persona están relacionadas}$$
+
+Como las muestras de cada conjunto son independientes entre sí por el contexto del problema, y en cada situación se tiene $\geq 5$ muestras, se puede realizar la prueba Chi-cuadrado de independencia.
+
+```{r}
+aprueba <- c(15, 12, 8)
+desaprueba <- c(9, 14, 5)
+
+tabla <- as.table(rbind(aprueba, desaprueba))
+
+dimnames(tabla) <- list(Respuesta = c("Aprueba", "Desaprueba"),
+                        Estamento = c("Estudiante", "Profesor", "Funcionario"))
+
+
+print(tabla)
+
+prueba <- chisq.test(tabla)
+prueba
+```
+Con un p-value = 0.452 y superior a la significancia 0.05, se puede decir con un nivel de confianza del 95% que no hay suficiente evidencia paran rechazar la hipótesis nula, por lo que no se puede negar que no haya relación entre la respuesta y el estamento de la persona sobre la aprobación al presidente Gabriel Boric.
+
+
+### Pregunta 4
+La Facultad de Ingeniería desea saber si existe diferencia significativa en el desempeño de los estudiantes en asignaturas críticas de primer semestre. Para ello, le ha entregado un archivo de datos que, para 3 asignaturas, indica si una muestra de 50 estudiantes aprobó o reprobó. ¿Qué puede concluir la Facultad? Indicación: obtenga la muestra a partir del archivo “EP04 Datos.csv” que se encuentra en el directorio compartido, usando la semilla 592. Considere un nivel de significación α=0,05.
+
+Como se busca identificar si las proporciones de aprobación y reprobación son similares o no, dado que se tiene una variable dicotómica sobre la aprobación y reprobación de cada asignatura (A y R), además de poseer tres asignaturas para cada estudiante, (Cálculo, Álgebra y Física), se utiliza la prueba Q de Cochran en vez de mcNemar con las siguientes hipótesis:
+
+$$H_{0}: \text{las proporciones de aprobación y reprobación son iguales en todos los ramos.}$$
+$$H_{a}: \text{las proporciones de aprobación y reprobación son diferentes en al menos un ramo.}$$
+
+```{r}
+
+datos <- read_excel("EP04 Datos.xls")
+set.seed(592)
+muestra <- datos[sample(nrow(datos), 50), ]  # sacar una muestra
+alfa <- 0.05
+
+muestra$Calculo[muestra$Calculo == "R"] <- 0
+muestra$Calculo[muestra$Calculo == "A"] <- 1
+muestra$Algebra[muestra$Algebra == "R"] <- 0
+muestra$Algebra[muestra$Algebra == "A"] <- 1
+muestra$Fisica[muestra$Fisica == "R"] <- 0
+muestra$Fisica[muestra$Fisica == "A"] <- 1
+
+
+muestra <- muestra %>% pivot_longer(c("Calculo", "Algebra", "Fisica"),
+                                    names_to = "ramos",
+                                    values_to = "resultado")
+
+muestra[["Id"]] <- factor(muestra[["Id"]])
+muestra[["ramos"]] <- factor(muestra[["ramos"]])
+
+prueba <- cochran.qtest(resultado ~ ramos | Id, data = muestra, alpha = alfa)
+
+prueba
+```
+
+Con un p-value inferior a 0.05, se rechaza la hipótesis nula en favor de la alternativa, indicando que al menos una de las proporciones de aprobación y reprobación es distinta de las otras.
+Como la prueba de Cochran no informa cuál es la proporción distinta, se realiza una prueba Post-hoc para descubrir cuál es la o las proporciones que se alejan de las otras.
+
+```{r}
+# Procedimiento post-hoc con correción de Bonferroni
+post_hoc_1 <- pairwiseMcnemar(resultado ~ ramos | Id, data = muestra,
+                              method = "bonferroni")
+
+post_hoc_1
+```
+
+Según post hoc de Bonferroni, la probabilidad de encontrar que no hay diferencia entre Álgebra - Física es muy baja, por lo tanto, existe una diferencia significativa entre estas. 
+
+```{r}
+
+# Procedimiento post-hoc con correción de Holm
+post_hoc_2 <- pairwiseMcnemar(resultado ~ ramos | Id,
+                              data = muestra,
+                              method = "holm")
+
+post_hoc_2
+```
+
+Según post hoc de Holm, la probabilidad de encontrar que no hay diferencia entre Álgebra - Física es muy baja, por lo tanto, existe una diferencia significativa entre estas.
+
+Entonces, concluyendo por las pruebas realizadas, los valores de las proporciones son demasiado alejadas unas de otras, resultando en que la Facultad no puede decir que hay una relación entre la aprobación y reprobación de los ramos de Cálculo, Álgebra y Física.

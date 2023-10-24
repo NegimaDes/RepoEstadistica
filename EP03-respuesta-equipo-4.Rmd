@@ -1,0 +1,337 @@
+---
+title: "EP03-EI"
+author: "Grupo 4"
+date: "2023-09-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Equipo: 4
+
+## Actividades
+
+Se sabe que una máquina que envasa detergentes industriales llena bidones con un volumen de producto que sigue una distribución normal con desviación estándar de 1 litro. Usando una muestra aleatoria de 100 envases, el ingeniero a cargo de la planta requiere determinar si la máquina está llenando los bidones con una media de 10 litros.
+
+En el contexto de este estudio, realizaremos las siguientes actividades:
+
+Copiar los enunciados de los problemas asignados como comentarios de un script R.
+Identificar qué se pide determinar en cada pregunta, justificando explícitamente con comentarios en el script.
+
+Escribir código R para crear gráficos y/o determinar el factor deseado o la probabilidad solicitada.
+
+Redactar respuestas a las preguntas planteadas (comentarios) con base a los resultados del análisis realizado.
+
+
+## Preguntas: Equipo 4
+
+```{r}
+# Librerías
+library(ggpubr)
+library(pwr)
+library(ggplot2)
+```
+
+###1. Si el ingeniero piensa rechazar la hipótesis nula cuando la muestra presente una media menor a 9,82 litros o mayor a 10,25 litros, ¿cuál es la probabilidad de que cometa un error de tipo I? Para responder, generen un gráfico de la distribución muestral de las medias hipotetizada en donde se marquen las zonas correspondientes a la probabilidad solicitada, para luego, basándose en este gráfico, calcular el área correspondiente. Tome como ejemplo los scripts presentados en la lectura sobre poder estadístico.
+
+```{r}
+# Fijar valores conocidos
+sigma <- 1
+alfa <- 0.05
+n <- 100
+media_nula <- 10
+
+# calcular el error estandar
+SE <- sigma / sqrt(n)
+
+# Graficar la distribución muestral con el valor nulo (media_nula) si la
+# hipotesis nula fuera verdadera
+
+# Valores para el gráfico
+x <- seq(9, 11, by = 0.01)
+y <- dnorm(x, mean = media_nula, sd = SE)
+
+# Crear el gráfico
+df <- data.frame(x, y)
+g <- ggplot(data = df, aes(x))
+g <- g + stat_function(
+  fun = dnorm,
+  args = list(mean = media_nula, sd = SE), colour = "red"
+)
+
+g <- g + ylab("")
+g <- g + theme_pubr()
+
+# Se cambia el la etiqueta del eje x
+g <- g + xlab("Litros de detergente")
+
+# Colorear la región de rechazo de la hipótesis nula
+g <- g + geom_area(
+  data = subset(df, x <= 9.82),
+  aes(y = y),
+  colour = "red",
+  fill = "red",
+  alpha = 0.5
+)
+
+g <- g + geom_area(
+  data = subset(df, x >= 10.25),
+  aes(y = y),
+  colour = "red",
+  fill = "red",
+  alpha = 0.5
+)
+
+g <- g + geom_vline(xintercept = c(9.82, 10.25), linetype = "dashed") +
+  scale_x_continuous(breaks = c(9.0, 9.5, 9.82, 10, 10.25, 10.5, 11)) +
+  theme_pubr() + ylim(0, 4) +
+  geom_vline(xintercept = 10, linetype = "dashed", colour = "#ff0000")
+
+
+g
+
+set.seed(1000)
+datos <- rnorm(n, media_nula, sigma)
+
+# Error tipo I
+areas <- pnorm(c(9.82, 10.25), mean(datos), SE)
+
+menor <- areas[1]
+mayor <- 1 - areas[2]
+
+alfa <- mayor + menor
+alfa
+```
+
+Para responder esto se calculó el nivel de significancia que está utilizando el ingeniero (Debido a que esta indica la probabilidad de cometer un error de tipo 1), el resultado de esta es un 0.03451731 aproximadamente, por lo que la probabilidad de cometer un error de tipo 1 es de 3.451731% (área sombreada roja en el gráfico).
+
+
+###2. Si el verdadero volumen medio de los bidones fuera de 10,3 litros, ¿cuál sería la probabilidad de que el ingeniero, que obviamente no conoce este dato, cometa un error de tipo II? Para responder, agregue al gráfico anterior la verdadera distribución muestral de las medias y marquen (con otro color) la zona correspondiente a la probabilidad solicitada, para luego, basándose en este gráfico, calcular el área correspondiente. También hay ejemplos de este procedimiento en la lectura sobre poder estadístico.
+
+```{r}
+# Suponer la distribución muestral con una media verdadera de 10.3
+media_efecto <- 10.3
+g <- g + stat_function(
+  fun = dnorm,
+  args = list(mean = media_efecto, sd = SE),
+  colour = "blue"
+)
+
+# Colorear la región de la nueva curva situada en la región de
+# rechazo de la curva original
+x1 <- seq(9, 11, 0.01)
+y1 <- dnorm(x1, mean = media_efecto, sd = SE)
+
+g <- g + geom_area(
+  data = subset(data.frame(x1, y1), x <= 9.82),
+  aes(x = x1, y = y1),
+  colour = "blue",
+  fill = "blue",
+  alpha = 0.5
+)
+
+g <- g + geom_area(
+  data = subset(data.frame(x1, y1), x >= 10.25),
+  aes(x = x1, y = y1),
+  colour = "blue",
+  fill = "blue",
+  alpha = 0.5
+)
+
+g
+
+# Calcular el poder de acuerdo al análisis teórico
+beta <- pnorm(10.25, mean = media_efecto, sd = SE, lower.tail = FALSE)
+
+cat("Beta = ", beta, "\n")
+```
+
+Para saber cuál es la probabilidad de cometer un error de tipo 2 siendo que la media verdadera es de 10.3 litros, se calculó el beta que indica esto, obteniendo un 0.6914625 aproximadamente, por lo que la probabilidad de cometer un error de tipo 2 es de 69.14625% (área sombreada azul en el gráfico).
+
+
+###3. Como no se conoce el verdadero volumen medio, genere un gráfico del poder estadístico con las condiciones anteriores, pero suponiendo que el verdadero volumen medio podría variar de 9,4 a 10,4 litros. Hay un ejemplo de este tipo de gráfico en la lectura sobre poder estadístico.
+
+Para este caso se realizará un gráfico acotado a las secciones a utilizar entre 9.4 y 10.4, utilizando valores de delta dados por d = x - 10, donde 10 corresponde a la media nula que se estableció en el contexto de este caso. Se usará la función power.t.test() para obtener estos valores a graficar.
+
+```{r}
+# Generando datos y usando power.t.test
+x <- seq(9.4, 10.4, 0.01)
+x <- x - media_nula
+poder <- power.t.test(
+  n = n, delta = x, sd = SE, sig.level = alfa,
+  type = "one.sample", alternative = "two.sided"
+)$power
+
+
+# Graficando curva de poder para una prueba t bilateral
+datos <- data.frame(x, poder)
+
+g <- ggplot(datos, aes(x, poder)) +
+  geom_line(colour = "red")
+
+g <- g + ylab("Poder estadístico") + xlab("Tamaño del efecto")
+g <- g + ggtitle("Curva de poder para prueba t bilateral") +
+  theme_pubr()
+
+g
+```
+
+###4. Considerando un volumen medio de 10 litros, ¿cuántos bidones deberían revisarse para conseguir un poder estadístico de 0,8 y un nivel de significación de 0,05?
+
+Para responder a esta pregunta, se usará la función power.t.test() de R para obtener el número de muestras necesarias para estas condiciones. Para esta situación se considerará un tamaño de efecto bajo, medio y alto.
+
+```{r}
+poder1 <- power.t.test(
+  n = NULL,
+  power = 0.8,
+  delta = 0.2,
+  sd = 1,
+  sig.level = 0.05,
+  type = "one.sample",
+  alternative = "two.sided"
+)$n
+
+poder2 <- power.t.test(
+  n = NULL,
+  power = 0.8,
+  delta = 0.5,
+  sd = 1,
+  sig.level = 0.05,
+  type = "one.sample",
+  alternative = "two.sided"
+)$n
+
+poder3 <- power.t.test(
+  n = NULL,
+  power = 0.8,
+  delta = 0.8,
+  sd = 1,
+  sig.level = 0.05,
+  type = "one.sample",
+  alternative = "two.sided"
+)$n
+
+cat("Bajo = ", poder1, "\nMedio = ", poder2, "\nAlto = ", poder3)
+```
+
+Los resultados indican que, cuando el tamaño del efecto es bajo, el valor de n debe ser igual a 198.15 aproximadamente, pero no se puede tener 0.15 observaciones, por lo que debe de necesitar 198 bidones para obtener un poder estadístico de 0.8 y un nivel de significación de 0.05, de igual manera, se necesitan 34 bidones para un tamaño de efecto medio y 15 para un tamaño de efecto alto.
+Se puede comprobar la certeza de los valores obtenidos utilizando estos mismos para obtener el resultado del poder en cada caso.
+
+```{r}
+# comprobando
+
+poder1 <- power.t.test(
+  n = 198,
+  power = NULL,
+  delta = 0.2,
+  sd = 1,
+  sig.level = 0.05,
+  type = "one.sample",
+  alternative = "two.sided"
+)$power
+
+poder2 <- power.t.test(
+  n = 33,
+  power = NULL,
+  delta = 0.5,
+  sd = 1,
+  sig.level = 0.05,
+  type = "one.sample",
+  alternative = "two.sided"
+)$power
+
+poder3 <- power.t.test(
+  n = 14,
+  power = NULL,
+  delta = 0.8,
+  sd = 1,
+  sig.level = 0.05,
+  type = "one.sample",
+  alternative = "two.sided"
+)$power
+
+cat("Poder con tamaño de efecto Bajo = ", poder1,
+    "\nPoder con tamaño de efecto medio = ", poder2,
+    "\nPoder con tamaño de efecto Alto = ", poder3)
+
+```
+
+###5. ¿Y si el ingeniero fuese muy exigente y quisiera reducir la probabilidad de cometer un error de tipo I a un 1% solamente?
+
+En este caso, se debe repetir lo utilizado en la pregunta anterior, pero se debe cambiar la variable sig.level de 0.05 a 0.01.
+
+```{r}
+poder1 <- power.t.test(
+  n = NULL,
+  power = 0.8,
+  delta = 0.2,
+  sd = 1,
+  sig.level = 0.01,
+  type = "one.sample",
+  alternative = "two.sided"
+)$n
+
+poder2 <- power.t.test(
+  n = NULL,
+  power = 0.8,
+  delta = 0.5,
+  sd = 1,
+  sig.level = 0.01,
+  type = "one.sample",
+  alternative = "two.sided"
+)$n
+
+poder3 <- power.t.test(
+  n = NULL,
+  power = 0.8,
+  delta = 0.8,
+  sd = 1,
+  sig.level = 0.01,
+  type = "one.sample",
+  alternative = "two.sided"
+)$n
+
+cat("Bajo = ", poder1, "\nMedio = ", poder2, "\nAlto = ", poder3)
+```
+
+El resultado obtenido indica que, cuando el tamaño del efecto es bajo, el valor de n en este caso debe ser 295.2973. Igual que el caso anterior, se redondean los resultados, entonces se requerirán 296 observaciones de bidones para un tamaño del efecto bajo, 51 para un tamaño del efecto medio y 22 para un tamaño de efecto alto, considerando un poder de 0.8 y un nivel de significación de 0.01 (1% de posibilidad de error tipo I).
+Se puede comprobar la certeza de los valores obtenidos utilizando estos mismos para obtener el resultado del poder en cada caso.
+
+```{r}
+# comprobando
+poder1 <- power.t.test(
+  n = 296,
+  power = NULL,
+  delta = 0.2,
+  sd = 1,
+  sig.level = 0.01,
+  type = "one.sample",
+  alternative = "two.sided"
+)$power
+
+poder2 <- power.t.test(
+  n = 51,
+  power = NULL,
+  delta = 0.5,
+  sd = 1,
+  sig.level = 0.01,
+  type = "one.sample",
+  alternative = "two.sided"
+)$power
+
+poder3 <- power.t.test(
+  n = 22,
+  power = NULL,
+  delta = 0.8,
+  sd = 1,
+  sig.level = 0.01,
+  type = "one.sample",
+  alternative = "two.sided"
+)$power
+
+cat("Poder con tamaño de efecto Bajo = ", poder1,
+    "\nPoder con tamaño de efecto medio = ", poder2,
+    "\nPoder con tamaño de efecto Alto = ", poder3)
+```
+

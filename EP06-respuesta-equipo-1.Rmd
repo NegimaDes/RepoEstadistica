@@ -1,0 +1,130 @@
+---
+title: "Ejercicio6"
+author: "Equipo 1"
+date: "2023-10-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Equipo 1:
+
+```{r}
+library(ggpubr)
+library(ez)
+library(nlme)
+library(emmeans)
+library(tidyverse)
+```
+
+Un equipo de investigadores del área de interacción humano-información está estudiando si el área temática y el nivel de dificultad del problema de información influyen en el tiempo (en segundos) que toma un usuario en formular una consulta de búsqueda para resolver dicho problema. Para ello, han reclutado a un grupo de participantes voluntarios, asignados aleatoriamente a distintos grupos. Cada participante debe resolver tres problemas de información con diferentes niveles de dificultad: baja, media y alta. A su vez, cada grupo debe resolver problemas relacionados a una temática diferente
+
+En este momento, los investigadores buscan determinar si existen diferencias en el tiempo que tardan los usuarios en formular consultas para problemas con diferente nivel de dificultad en el área de física.
+
+Cargar datos:
+
+```{r}
+datos <- read.csv2("EP05 Datos.csv", header = TRUE, sep = ",")
+datos <- datos[datos$area %in% c("Física"), ]
+muestra_ancha <- datos %>% pivot_wider(names_from = "area",
+                                       values_from = "tiempo")
+#Formato Largo
+head(datos)
+#Formato Ancho
+head(muestra_ancha)
+```
+<br>
+
+Definición de hipótesis:
+
+Lenguaje Natural:
+
+$$H_0: \text{El tiempo que tardan los usuarios en formular consultas para problemas con }$$
+$$\text{diferente nivel de dificultad en el área de física son iguales.}$$
+
+$$H_a: \text{Existen diferencias en el tiempo que tardan los usuarios en formular}$$
+$$\text{consultas para problemas con diferente nivel de dificultad en el área de física.}$$
+
+Lenguaje Matemático:
+$$H_0: \mu_{baja} = \mu_{media} = \mu_{alta} $$
+
+$$H_a: \mu_{baja} \neq \mu_{media} \vee \mu_{media} \neq \mu_{alta} \vee  \mu_{baja} \neq \mu_{alta} $$
+
+<br>
+
+Condiciones requeridas por ANOVA:
+
+1. La escala con que se mide la variable dependiente tiene las propiedades de una escala de intervalos iguales
+
+En este caso, la variable numérica dependiente es el tiempo que es una magnitud física, y todas estas presentan una escala de intervalos iguales (de hecho tiene escala de razón)
+
+2. Las mediciones son independientes al interior de cada grupo.
+
+Como los voluntarios fueron seleccionados al azar para participar en los distintos grupos, y cada uno de los participantes de cada grupo se le entregó distintas preguntas
+
+3. Ver si la población de origen sigue una distribución normal.
+
+Para poder probar la normalidad, en una primera instancia, se realizará un gráfico Q-Q para las 3 dificultades
+
+```{r}
+g <- ggqqplot(datos, x = "tiempo",
+              y = "dificultad",
+              color = "dificultad")
+g <- g + facet_wrap(~ dificultad)
+print(g)
+```
+
+Visualmente en el gráfico Q-Q, la dificultad alta tiene valores muy cercanos al límite para la normalidad, debido a esto, se realizará la prueba de Shapiro para asegurar que se cumpla la condición
+
+```{r}
+altos <- datos [datos$dificultad %in% c("Alta"), ]
+normalidad <- shapiro.test(altos$tiempo)
+normalidad
+```
+Como el procedimiento entrega un p-value de 0.4841, se podría asegurar con 95% que la población de origen en el área de física con dificultad alta sigue una distribución cercana a la normal
+
+4. La matriz de varianzas-covarianzas es esférica. Como explica Horn (2008, p. 1), esta condición establece que las varianzas entre los diferentes niveles de las medidas repetidas deben ser iguales. 
+
+Para demostrarlo, se utilizará la prueba de esfericidad de Mauchly que se realiza por medio de la función ezANOVA()
+
+```{r}
+datos[["dificultad"]] <- factor(datos[["dificultad"]])
+datos[["id"]] <- factor(datos[["id"]])
+
+prueba <- ezANOVA(data = datos, dv = tiempo, within = dificultad,
+                  wid = id, return_aov = TRUE)
+
+prueba$`Mauchly's Test for Sphericity`
+```
+
+Y con esta prueba se obtuvo un p-value de 0.912293, entonces se desprende que los datos del ejemplo sí cumplen con la condición de esfericidad (hipótesis nula de la prueba de Mauchly).
+
+Finalmente, con el cumplimiento de esta condición, se demuestran todas las condiciones para usar una prueba ANOVA de una vía para muestras correlacionadas 
+
+<br>
+
+- Procedimiento de la Prueba:
+
+```{r}
+summary(prueba$aov)
+```
+
+Como la prueba da un p-value<2e-16, menor a un nivel de significación de 0.05, se rechaza la hipótesis nula en favor de la hipótesis alternativa. Así, se concluye con más de 95 % de confianza que existen diferencias en el tiempo que tardan los usuarios en formular consultas para problemas con diferente nivel de dificultad en el área de física.
+
+Como la prueba ANOVA es ómnibus, al rechazar la hipótesis nula, se realizará un procedimiento post-hoc
+
+<br>
+
+- Prueba post-hoc:
+
+```{r}
+print("Prueba post-hoc de Tukey")
+mixto <- lme(tiempo ~ dificultad, data = datos, random = ~1 | id)
+medias <- emmeans(mixto, "dificultad")
+tukey <- pairs(medias, adjust = "tukey")
+tukey
+```
+
+El resultado que la prueba de Tukey entrega permite inclinarse por una respuesta en favor de que la media distinta de las otras corresponde a la dificultad alta, ya que los p_value donde se contrasta la dificultad alta con las otras dificultades da valores menores a 0.0001, mientras que en dificultad baja y media da un p_value de 0.9641. Finalmente, se puede concluir que existen diferencias significativas en los tiempos de formulación de consultas cuando las dificultades son altas en los problemas de Física.
